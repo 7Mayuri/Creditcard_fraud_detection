@@ -1,0 +1,156 @@
+import math
+import random
+import csv
+#import matplotlib.pyplot as plt
+
+def sep(dataset):
+	classes = []
+	for i in range(len(dataset)):
+		if dataset[i][-1] not in classes:
+			classes.append(dataset[i][-1])
+	for i in range(len(classes)):
+		for j in range(len(dataset)):
+			if dataset[j][-1] == classes[i]:
+				dataset[j][-1] = i
+	return dataset		
+			
+
+# Splitting the data
+def splitting(dataset, ratio):
+	train_num = int(len(dataset) * ratio)
+	train = []
+	# initially testset will have all the dataset
+	test = list(dataset)
+	while len(train) < train_num:
+		# index generated randomly from range 0
+		# to length of testset
+		index = random.randrange(len(test))
+		# from testset, pop data rows and put it in train
+		train.append(test.pop(index))
+	return train, test
+
+
+# Group the data rows under each class yes or
+# no in dictionary eg: dict[yes] and dict[no]
+def groupUnderClass(dataset):
+	dict = {}
+	for i in range(len(dataset)):
+		if (dataset[i][-1] not in dict):
+			dict[dataset[i][-1]] = []
+		dict[dataset[i][-1]].append(dataset[i])
+	return dict
+
+
+# Calculating Mean
+def mean(numbers):
+	return sum(numbers) / float(len(numbers))
+
+# Calculating Standard Deviation
+def stdev(numbers):
+	avg = mean(numbers)
+	variance = sum([pow(x - avg, 2) for x in numbers]) / float(len(numbers) - 1)
+	return math.sqrt(variance)
+
+def MeanAndStdDev(dataset):
+	info = [(mean(attribute), stdev(attribute)) for attribute in zip(*dataset)]
+	del info[-1]
+	return info
+
+# find Mean and Standard Deviation under each class
+def MeanAndStdDevForClass(dataset):
+	info = {}
+	dict = groupUnderClass(dataset)
+	for classValue, instances in dict.items():
+		info[classValue] = MeanAndStdDev(instances)
+	return info
+
+
+# Calculate Gaussian Probability Density Function (P(X|C)) prior probablity 
+def calculateProbability(x, mean, stdev):
+	e = math.exp(-(math.pow(x - mean, 2) / (2 * math.pow(stdev, 2))))
+	return (1 / (math.sqrt(2 * math.pi) * stdev)) * e
+
+
+# Calculate Class Probabilities #P(C|X) = P(X|C)*P(C)            
+def calculateClassProbabilities(info, test):
+	probabilities = {}
+	for classValue, classSummaries in info.items():
+		probabilities[classValue] = 1
+		for i in range(len(classSummaries)):
+			mean, stdev = classSummaries[i]
+			x = test[i]
+			probabilities[classValue] *= calculateProbability(x, mean, stdev) #posterior probablity
+	return probabilities
+
+
+# Make prediction - highest probability is the prediction
+def predict(info, test):
+	probabilities = calculateClassProbabilities(info, test)
+	bestLabel, bestProb = None, -1
+	for classValue, probability in probabilities.items():
+		if bestLabel is None or probability > bestProb:
+			bestProb = probability
+			bestLabel = classValue
+	return bestLabel
+
+
+# returns predictions for a set of examples
+def getPredictions(info, test):
+	predictions = []
+	for i in range(len(test)):
+		result = predict(info, test[i])
+		predictions.append(result)
+	return predictions
+
+# Accuracy score
+def accuracy_rate(test, predictions):
+	correct = 0
+	for i in range(len(test)):
+		if test[i][-1] == predictions[i]:
+			correct += 1
+	return (correct / float(len(test))) * 100.0
+
+
+filename = r'creditcard.csv'
+
+# load the file and store it in dataset list
+dataset = csv.reader(open(filename, "rt"))
+dataset = list(dataset)
+dataset = sep(dataset)
+for i in range(len(dataset)):
+	dataset[i] = [float(x) for x in dataset[i]]
+
+	
+#split data into two set train_data=80% and test_data=20%
+ratio = 0.8
+train_data, test_data = splitting(dataset, ratio)
+print('len of dataset: ', len(dataset))
+print('len of training set: ', len(train_data))
+print("len of test set data: ", len(test_data))
+
+
+info = MeanAndStdDevForClass(train_data)
+
+test_data =  [[159844,	-0.408110817,	3.132944498,	-3.098029764,	5.803892615,	0.890608919,	-0.501474323,	-0.440054283,	0.591828269,	-3.267693259,	-2.223070328,	0.757063214,	-3.501803779,	0.246742224,	-6.06562188,	0.339583134,	-1.005723154,	0.334315624,	0.421261362,	1.247142631,	0.499567913,	0.098482322,	-0.538374705,	-0.217988987,	-1.042656617,	0.314388821,	0.543243576,	0.233851015,	0.1196034,61	,45.51	,1]]
+predictions = getPredictions(info, test_data)
+print('train data')
+print(train_data)
+print('test data')
+print(test_data)
+print('Predictions')
+print(predictions)
+
+#plt.scatter(test_data,predictions, label= "stars", color= "green",marker= "*", s=30)
+accuracy = accuracy_rate(test_data, predictions)
+print("Accuracy is: ", accuracy)
+print('mean and var are : ')
+var=MeanAndStdDev(dataset)
+print(var)
+#from sklearn.metrics import confusion_matrix
+#confusion_matrix(test_data, predictions, labels=['yes', 'no'])
+#for i in range(len(test_data)) :
+ # t=test_data[i][-1]
+
+#from sklearn.metrics import confusion_matrix
+
+#confusion_matrix(t, predictions, labels=['yes', 'no'])
